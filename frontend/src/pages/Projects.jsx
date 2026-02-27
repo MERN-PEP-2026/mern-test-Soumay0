@@ -7,8 +7,8 @@ const Projects = () => {
   const [form, setForm] = useState({ name: "", description: "", status: "active" });
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
-  // Fetch all projects on mount
   useEffect(() => {
     fetchProjects();
   }, []);
@@ -37,6 +37,7 @@ const Projects = () => {
         await API.post("/projects", form);
       }
       setForm({ name: "", description: "", status: "active" });
+      setShowForm(false);
       fetchProjects();
     } catch (err) {
       setError(err.response?.data?.message || "Operation failed");
@@ -50,10 +51,11 @@ const Projects = () => {
       description: project.description,
       status: project.status,
     });
+    setShowForm(true);
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this project?")) return;
+    if (!window.confirm("Are you sure you want to delete this project?")) return;
     try {
       await API.delete(`/projects/${id}`);
       fetchProjects();
@@ -65,59 +67,107 @@ const Projects = () => {
   const cancelEdit = () => {
     setEditingId(null);
     setForm({ name: "", description: "", status: "active" });
+    setShowForm(false);
   };
 
   return (
     <div className="page">
-      <h2>Projects</h2>
-      <Link to="/dashboard" className="btn back-btn">← Back to Dashboard</Link>
+      <div className="breadcrumb">
+        <Link to="/dashboard">Dashboard</Link>
+        <span>/</span>
+        <span>Projects</span>
+      </div>
+
+      <div className="page-header">
+        <h2>Projects</h2>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)} className="btn btn-filled">
+            &#43; New Project
+          </button>
+        )}
+      </div>
 
       {error && <p className="error">{error}</p>}
 
-      <form onSubmit={handleSubmit} className="crud-form">
-        <input
-          type="text"
-          name="name"
-          placeholder="Project name"
-          value={form.name}
-          onChange={handleChange}
-          required
-        />
-        <input
-          type="text"
-          name="description"
-          placeholder="Description"
-          value={form.description}
-          onChange={handleChange}
-        />
-        <select name="status" value={form.status} onChange={handleChange}>
-          <option value="active">Active</option>
-          <option value="completed">Completed</option>
-          <option value="on-hold">On Hold</option>
-        </select>
-        <button type="submit">{editingId ? "Update" : "Create"}</button>
-        {editingId && (
-          <button type="button" onClick={cancelEdit}>Cancel</button>
-        )}
-      </form>
+      {showForm && (
+        <div className="crud-form">
+          <h3>{editingId ? "Edit Project" : "Create New Project"}</h3>
+          <form onSubmit={handleSubmit}>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Project Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="My Awesome Project"
+                  value={form.name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Description</label>
+                <input
+                  type="text"
+                  name="description"
+                  placeholder="Brief description..."
+                  value={form.description}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="form-group" style={{ maxWidth: "160px" }}>
+                <label>Status</label>
+                <select name="status" value={form.status} onChange={handleChange}>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="on-hold">On Hold</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-actions" style={{ marginTop: "16px" }}>
+              <button type="submit" className="btn btn-filled">
+                {editingId ? "Update Project" : "Create Project"}
+              </button>
+              <button type="button" onClick={cancelEdit} className="btn btn-outline">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
-      <div className="list">
-        {projects.length === 0 && <p>No projects yet. Create one above!</p>}
-        {projects.map((p) => (
-          <div key={p._id} className="card">
-            <div className="card-body">
-              <h3>{p.name}</h3>
-              <p>{p.description}</p>
-              <span className={`badge badge-${p.status}`}>{p.status}</span>
+      {projects.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">&#128194;</div>
+          <h3>No projects yet</h3>
+          <p>Create your first project to start organizing your tasks</p>
+        </div>
+      ) : (
+        <div className="cards-grid">
+          {projects.map((p) => (
+            <div key={p._id} className="project-card">
+              <div className="card-header">
+                <h3>{p.name}</h3>
+                <div className="card-actions">
+                  <button onClick={() => handleEdit(p)} className="btn btn-icon edit" title="Edit">
+                    &#9998;
+                  </button>
+                  <button onClick={() => handleDelete(p._id)} className="btn btn-icon danger" title="Delete">
+                    &#128465;
+                  </button>
+                </div>
+              </div>
+              <p className="card-desc">{p.description || "No description"}</p>
+              <div className="card-footer">
+                <span className={`badge badge-${p.status}`}>{p.status}</span>
+                <Link to={`/projects/${p._id}/tasks`} className="btn btn-sm btn-outline">
+                  View Tasks &rarr;
+                </Link>
+              </div>
             </div>
-            <div className="card-actions">
-              <Link to={`/projects/${p._id}/tasks`} className="btn">Tasks</Link>
-              <button onClick={() => handleEdit(p)} className="btn btn-edit">Edit</button>
-              <button onClick={() => handleDelete(p._id)} className="btn btn-delete">Delete</button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

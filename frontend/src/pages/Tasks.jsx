@@ -9,6 +9,7 @@ const Tasks = () => {
   const [form, setForm] = useState({ title: "", description: "", status: "todo" });
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     fetchTasks();
@@ -48,6 +49,7 @@ const Tasks = () => {
         await API.post("/tasks", { ...form, project: projectId });
       }
       setForm({ title: "", description: "", status: "todo" });
+      setShowForm(false);
       fetchTasks();
     } catch (err) {
       setError(err.response?.data?.message || "Operation failed");
@@ -61,10 +63,11 @@ const Tasks = () => {
       description: task.description,
       status: task.status,
     });
+    setShowForm(true);
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this task?")) return;
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
     try {
       await API.delete(`/tasks/${id}`);
       fetchTasks();
@@ -76,58 +79,127 @@ const Tasks = () => {
   const cancelEdit = () => {
     setEditingId(null);
     setForm({ title: "", description: "", status: "todo" });
+    setShowForm(false);
   };
+
+  const todoCount = tasks.filter((t) => t.status === "todo").length;
+  const progressCount = tasks.filter((t) => t.status === "in-progress").length;
+  const doneCount = tasks.filter((t) => t.status === "done").length;
 
   return (
     <div className="page">
-      <h2>Tasks — {projectName}</h2>
-      <Link to="/projects" className="btn back-btn">← Back to Projects</Link>
+      <div className="breadcrumb">
+        <Link to="/dashboard">Dashboard</Link>
+        <span>/</span>
+        <Link to="/projects">Projects</Link>
+        <span>/</span>
+        <span>{projectName}</span>
+      </div>
+
+      <div className="page-header">
+        <h2>{projectName} — Tasks</h2>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)} className="btn btn-filled">
+            &#43; Add Task
+          </button>
+        )}
+      </div>
+
+      {tasks.length > 0 && (
+        <div className="dashboard-stats" style={{ marginBottom: "24px" }}>
+          <div className="stat-card">
+            <h3>To Do</h3>
+            <div className="stat-value">{todoCount}</div>
+          </div>
+          <div className="stat-card">
+            <h3>In Progress</h3>
+            <div className="stat-value">{progressCount}</div>
+          </div>
+          <div className="stat-card">
+            <h3>Done</h3>
+            <div className="stat-value">{doneCount}</div>
+          </div>
+        </div>
+      )}
 
       {error && <p className="error">{error}</p>}
 
-      <form onSubmit={handleSubmit} className="crud-form">
-        <input
-          type="text"
-          name="title"
-          placeholder="Task title"
-          value={form.title}
-          onChange={handleChange}
-          required
-        />
-        <input
-          type="text"
-          name="description"
-          placeholder="Description"
-          value={form.description}
-          onChange={handleChange}
-        />
-        <select name="status" value={form.status} onChange={handleChange}>
-          <option value="todo">To Do</option>
-          <option value="in-progress">In Progress</option>
-          <option value="done">Done</option>
-        </select>
-        <button type="submit">{editingId ? "Update" : "Add Task"}</button>
-        {editingId && (
-          <button type="button" onClick={cancelEdit}>Cancel</button>
-        )}
-      </form>
+      {showForm && (
+        <div className="crud-form">
+          <h3>{editingId ? "Edit Task" : "Add New Task"}</h3>
+          <form onSubmit={handleSubmit}>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Task Title</label>
+                <input
+                  type="text"
+                  name="title"
+                  placeholder="Design homepage"
+                  value={form.title}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Description</label>
+                <input
+                  type="text"
+                  name="description"
+                  placeholder="Brief description..."
+                  value={form.description}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="form-group" style={{ maxWidth: "160px" }}>
+                <label>Status</label>
+                <select name="status" value={form.status} onChange={handleChange}>
+                  <option value="todo">To Do</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-actions" style={{ marginTop: "16px" }}>
+              <button type="submit" className="btn btn-filled">
+                {editingId ? "Update Task" : "Add Task"}
+              </button>
+              <button type="button" onClick={cancelEdit} className="btn btn-outline">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
-      <div className="list">
-        {tasks.length === 0 && <p>No tasks yet. Add one above!</p>}
-        {tasks.map((t) => (
-          <div key={t._id} className={`card task-${t.status}`}>
-            <div className="card-body">
-              <h3>{t.title}</h3>
-              <p>{t.description}</p>
-              <span className={`badge badge-${t.status}`}>{t.status}</span>
+      {tasks.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">&#9776;</div>
+          <h3>No tasks yet</h3>
+          <p>Add your first task to start tracking progress</p>
+        </div>
+      ) : (
+        <div className="cards-grid">
+          {tasks.map((t) => (
+            <div key={t._id} className={`task-card status-${t.status}`}>
+              <div className="card-header">
+                <h3>{t.title}</h3>
+                <div className="card-actions">
+                  <button onClick={() => handleEdit(t)} className="btn btn-icon edit" title="Edit">
+                    &#9998;
+                  </button>
+                  <button onClick={() => handleDelete(t._id)} className="btn btn-icon danger" title="Delete">
+                    &#128465;
+                  </button>
+                </div>
+              </div>
+              <p className="card-desc">{t.description || "No description"}</p>
+              <div className="card-footer">
+                <span className={`badge badge-${t.status}`}>{t.status}</span>
+              </div>
             </div>
-            <div className="card-actions">
-              <button onClick={() => handleEdit(t)} className="btn btn-edit">Edit</button>
-              <button onClick={() => handleDelete(t._id)} className="btn btn-delete">Delete</button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
